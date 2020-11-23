@@ -6,3 +6,8 @@ target/
 
 # Private settings.
 settings.xml
+
+# Intellij
+.idea/
+*.iml
+*.iws

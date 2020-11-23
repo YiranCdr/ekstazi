@@ -8,7 +8,7 @@
     <version>5.3.0</version> <!-- EkstaziVersion -->
   </parent>
 
-  <artifactId>ekstazi-maven-plugin</artifactId>
+  <artifactId>ekstazi-maven-plugins</artifactId>
   <packaging>maven-plugin</packaging>
   <name>${project.groupId}:${project.artifactId}</name>
   <url>www.ekstazi.org</url>
