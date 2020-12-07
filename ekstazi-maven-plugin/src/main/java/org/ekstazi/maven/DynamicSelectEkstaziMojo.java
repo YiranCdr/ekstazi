@@ -22,7 +22,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 
 import org.apache.maven.model.Plugin;
 
-import java.io.File;
+import java.io.*;
 import java.util.Arrays;
 import java.util.List;
 
@@ -41,6 +41,7 @@ import org.ekstazi.agent.EkstaziAgent;
 public class DynamicSelectEkstaziMojo extends StaticSelectEkstaziMojo {
 
     public void execute() throws MojoExecutionException {
+        getLog().info("exetmptimeA11");
         if (getSkipme()) {
             getLog().info("Ekstazi is skipped.");
             return;
@@ -53,9 +54,29 @@ public class DynamicSelectEkstaziMojo extends StaticSelectEkstaziMojo {
         checkIfEkstaziDirCanBeCreated();
 
         if (isRestoreGoalPresent()) {
+            getLog().info("exetmptimeA1");
             super.execute();
         } else {
+            getLog().info("exetmptimeA");
+            long startTime = System.currentTimeMillis();
             executeThis();
+            long endTime = System.currentTimeMillis();
+            try {
+                String timeDir = System.getProperty("user.dir") + System.getProperty("file.separator") + "tmptimeA.csv";
+                getLog().info(timeDir);
+                File file = new File(timeDir);
+                if (file.exists()) {
+                    file.delete();
+                }
+                else{
+                    file.createNewFile();
+                }
+                Writer output = new BufferedWriter(new FileWriter(timeDir, true));
+                output.append((endTime - startTime) + ",\n");
+                output.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

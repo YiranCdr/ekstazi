@@ -31,6 +31,8 @@ import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Suite;
 
+import java.io.*;
+
 /**
  * Support for collecting coverage for test class granularity level. (Note that
  * we also supports all runners, including non-standard runners, used with
@@ -70,20 +72,47 @@ public class CoverageRunner extends Runner implements Filterable, Sortable {
 
     @Override
     public void run(RunNotifier notifier) {
+        String timeDir = System.getProperty("user.dir") + System.getProperty("file.separator") + "tmptimeEC.csv";
+        Writer output = null;
+        try {
+            File file = new File(timeDir);
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+            output = new BufferedWriter(new FileWriter(timeDir, true));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         if (isIgnoreAllTests()) {
             return;
         } else if (isRunWithoutCoverage()) {
             mWrappedRunner.run(notifier);
         } else {
+            long startTime = System.currentTimeMillis();
             Ekstazi.inst().beginClassCoverage(mClz.getName());
+            long endTime = System.currentTimeMillis();
+            long beginCoverageTime = endTime - startTime;
             JUnit4OutcomeListener outcomeListener = new JUnit4OutcomeListener();
             notifier.addListener(outcomeListener);
             try {
+                startTime = System.currentTimeMillis();
                 mWrappedRunner.run(notifier);
+                endTime = System.currentTimeMillis();
+                output.append((endTime - startTime) + ",");
+            } catch (IOException e) {
+                e.printStackTrace();
             } finally {
                 // Include URLs from constructors.
+                startTime = System.currentTimeMillis();
                 if (mURLs != null) CoverageMonitor.addURLs(mURLs);
                 Ekstazi.inst().endClassCoverage(mClz.getName(), outcomeListener.isFailOrError());
+                endTime = System.currentTimeMillis();
+                try {
+                    output.append((beginCoverageTime + endTime - startTime) + ",\n");
+                    output.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
