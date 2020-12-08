@@ -27,6 +27,8 @@ import org.ekstazi.hash.Hasher;
 import org.ekstazi.log.Log;
 import org.ekstazi.research.Research;
 
+import org.ekstazi.Config;
+
 @Research
 final class MethodCheck extends AbstractCheck {
 
@@ -37,7 +39,7 @@ final class MethodCheck extends AbstractCheck {
         private final String mFileName;
         private final String mFileDir;
         private final String mClassName;
-        
+
         public TestAbs(boolean isAffected, Set<RegData> regData, String fileName, String fileDir, String className) {
             this.mIsAffected = isAffected;
             this.mRegData = regData;
@@ -45,7 +47,7 @@ final class MethodCheck extends AbstractCheck {
             this.mFileDir = fileDir;
             this.mClassName = className;
         }
-        
+
         public boolean isAffected() { return mIsAffected; }
         public void setAffected(boolean b) { mIsAffected = b; }
         public Set<RegData> getRegData() { return mRegData; }
@@ -77,12 +79,15 @@ final class MethodCheck extends AbstractCheck {
             className = fileName.substring(0, index);
             String methodName = fileName.substring(index + 1);
             boolean isAffected = isAffected(fileDir, className, methodName);
-            mTests.add(new TestAbs(isAffected, mStorer.load(fileDir, className, methodName), fileName, fileDir, className));
-//            mTests.add(new TestAbs(isAffected, mStorer.myload(fileDir, className, methodName), fileName, fileDir, className));
+            if (Config.USE_DATABASE) {
+                mTests.add(new TestAbs(isAffected, mStorer.myload(fileDir, className, methodName), fileName, fileDir, className));
+            } else {
+                mTests.add(new TestAbs(isAffected, mStorer.load(fileDir, className, methodName), fileName, fileDir, className));
+            }
         }
         return className;
     }
-    
+
     @Override
     public void includeAffected(Set<String> affectedClasses) {
         // Check if affected tests are really affected.
@@ -104,12 +109,12 @@ final class MethodCheck extends AbstractCheck {
                 }
             }
         }
-        
+
         for (TestAbs test : affectedTests) {
             if (test.isAffected()) affectedClasses.add(test.getClassName());
         }
     }
-    
+
     private boolean checkForDifferences(TestAbs affected, TestAbs nonAffected) {
         for (RegData affectedDatum : affected.getRegData()) {
             for (RegData nonAffectedDatum : nonAffected.getRegData()) {
@@ -121,7 +126,7 @@ final class MethodCheck extends AbstractCheck {
         }
         return false;
     }
-    
+
     private List<TestAbs> getAffectedTests(List<TestAbs> tests) {
         List<TestAbs> affectedTests = new ArrayList<MethodCheck.TestAbs>();
         for (int i = 0; i < tests.size(); i++) {
@@ -130,7 +135,7 @@ final class MethodCheck extends AbstractCheck {
         }
         return affectedTests;
     }
-    
+
     private List<TestAbs> getNonAffectedTests(List<TestAbs> tests) {
         List<TestAbs> nonAffectedTests = new ArrayList<MethodCheck.TestAbs>();
         for (int i = 0; i < tests.size(); i++) {

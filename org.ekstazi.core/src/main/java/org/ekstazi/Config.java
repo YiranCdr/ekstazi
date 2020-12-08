@@ -248,6 +248,11 @@ public final class Config {
     public static boolean X_IGNORE_ALL_TESTS_V = false;
     protected static final String X_IGNORE_ALL_TESTS_N = "x.ignore.all.tests";
 
+    // DATABASE
+    public static boolean USE_DATABASE = false;
+    // if USE_POSTGRESQL = true, use postgresql, else use MongoDB
+    public static boolean USE_POSTGRESQL = false;
+
     // INITIALIZE
 
     public static void loadConfig() {

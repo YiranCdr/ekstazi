@@ -22,6 +22,8 @@ import org.ekstazi.data.RegData;
 import org.ekstazi.data.Storer;
 import org.ekstazi.hash.Hasher;
 
+import org.ekstazi.Config;
+
 abstract class AbstractCheck {
 
     /** Storer */
@@ -43,8 +45,11 @@ abstract class AbstractCheck {
     public abstract void includeAffected(Set<String> affectedClasses);
 
     protected boolean isAffected(String dirName, String className, String methodName) {
-        return isAffected(mStorer.load(dirName, className, methodName));
-//        return isAffected(mStorer.myload(dirName, className, methodName));
+        if (Config.USE_DATABASE) {
+            return isAffected(mStorer.myload(dirName, className, methodName));
+        } else {
+            return isAffected(mStorer.load(dirName, className, methodName));
+        }
     }
 
     protected boolean isAffected(Set<RegData> regData) {

@@ -53,8 +53,12 @@ public abstract class AbstractIT {
 
     protected boolean dependencyExists(String testName, String dependencyFileName, String dependencyName) throws Exception {
         Storer storer = Config.createStorer();
-//        Set<RegData> data = storer.load(getTestDir(testName) + System.getProperty("file.separator") + Names.EKSTAZI_ROOT_DIR_NAME, dependencyFileName);
-        Set<RegData> data = storer.myload(getTestDir(testName) + System.getProperty("file.separator") + Names.EKSTAZI_ROOT_DIR_NAME, dependencyFileName);
+        Set<RegData> data = null;
+        if (Config.USE_DATABASE) {
+            data = storer.myload(getTestDir(testName) + System.getProperty("file.separator") + Names.EKSTAZI_ROOT_DIR_NAME, dependencyFileName);
+        } else {
+            data = storer.load(getTestDir(testName) + System.getProperty("file.separator") + Names.EKSTAZI_ROOT_DIR_NAME, dependencyFileName);
+        }
 
         for (RegData datum : data) {
             if (datum.getURLExternalForm().contains(dependencyName)) {

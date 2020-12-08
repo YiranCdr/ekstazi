@@ -21,11 +21,12 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.sql.*;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
+import com.mongodb.client.*;
+import com.mongodb.client.result.DeleteResult;
+import org.bson.Document;
+import static com.mongodb.client.model.Filters.*;
 import org.ekstazi.Config;
 import org.ekstazi.hash.Hasher;
 import org.ekstazi.log.Log;
@@ -48,7 +49,7 @@ public abstract class Storer {
 
         /**
          * Constructor.
-         * 
+         *
          * @param magicSequence
          *            Magic/version sequence associated with mode.
          */
@@ -58,7 +59,7 @@ public abstract class Storer {
 
         /**
          * Returns magic/version sequence for this mode.
-         * 
+         *
          * @return Magic/version sequence.
          */
         public String getMagicSequence() {
@@ -68,10 +69,10 @@ public abstract class Storer {
         /**
          * This method guarantees to return a correct mode if one is not cannot
          * be parsed.
-         * 
+         *
          * @param text
          *            Mode as provides in configuration.
-         * 
+         *
          * @return Storing mode.
          */
         public static Mode fromString(String text) {
@@ -132,23 +133,45 @@ public abstract class Storer {
     }
 
     public final Set<RegData> myload(String dirName, String fullName) {
-        // my local database
-        String url = "jdbc:postgresql://localhost/postgres";
-        Properties props = new Properties();
-        props.setProperty("user","apple");
-        props.setProperty("password","ranpengFEI123");
-        props.setProperty("reWriteBatchedInserts=true", "true");
-
-        Connection connection = null;
         Set<RegData> hashes = null;
-        try {
-            connection = DriverManager.getConnection(url, props);
-            hashes = query(connection, "SE", "fullname", fullName);
-            connection.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
 
+        if (Config.USE_POSTGRESQL) {
+            // my local postgresql database
+            String url = "jdbc:postgresql://localhost/postgres";
+            Properties props = new Properties();
+            props.setProperty("user","apple");
+            props.setProperty("password","ranpengFEI123");
+            props.setProperty("reWriteBatchedInserts=true", "true");
+            Connection connection = null;
+
+            try {
+                connection = DriverManager.getConnection(url, props);
+                hashes = query(connection, "SE", "fullname", fullName);
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+//            // MongoDB
+            MongoClient mongoClient = MongoClients.create();
+            MongoDatabase database = mongoClient.getDatabase("mydb");
+            MongoCollection<Document> collection = database.getCollection("SE");
+
+            MongoCursor<Document> cursor = collection.find(eq("fullname", fullName)).iterator();
+            hashes = new HashSet<RegData>();
+            try {
+                while (cursor.hasNext()) {
+                    Document doc = cursor.next();
+                    List<String> urls = (ArrayList<String>)doc.get("url");
+                    List<String> hashvalues = (ArrayList<String>)doc.get("hashvalue");
+                    for (int i = 0; i < urls.size(); ++i) {
+                        hashes.add(new RegData(urls.get(i), hashvalues.get(i)));
+                    }
+                }
+            } finally {
+                cursor.close();
+            }
+        }
         return hashes;
     }
 
@@ -214,30 +237,51 @@ public abstract class Storer {
             return;
         }
 
-        // my local database
-        String url = "jdbc:postgresql://localhost/postgres";
-        Properties props = new Properties();
-        props.setProperty("user","apple");
-        props.setProperty("password","ranpengFEI123");
-        props.setProperty("reWriteBatchedInserts=true", "true");
+        if (Config.USE_POSTGRESQL) {
+            // my local postgresql database
+            String url = "jdbc:postgresql://localhost/postgres";
+            Properties props = new Properties();
+            props.setProperty("user","apple");
+            props.setProperty("password","ranpengFEI123");
+            props.setProperty("reWriteBatchedInserts=true", "true");
 
-        Connection connection = null;
+            Connection connection = null;
 
-        try {
-            connection = DriverManager.getConnection(url, props);
-            deleteRows(connection, "SE", "fullname", fullName);
+            try {
+                connection = DriverManager.getConnection(url, props);
+                deleteRows(connection, "SE", "fullname", fullName);
+                for (RegData regDatum : hashes) {
+                    if (regDatum.getURLExternalForm().startsWith("file")) {
+                        insertRow(connection, "SE", "(" +
+                                "\'" + fullName + "\'" + ", " +
+                                "\'" + regDatum.getURLExternalForm() + "\'" + ", " +
+                                "\'" + regDatum.getHash() + "\'" +
+                                ")");
+                    }
+                }
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+//            // MongoDB
+            MongoClient mongoClient = MongoClients.create();
+            MongoDatabase database = mongoClient.getDatabase("mydb");
+            MongoCollection<Document> collection = database.getCollection("SE");
+
+            DeleteResult deleteResult = collection.deleteMany(eq("fullname", fullName));
+            List<String> urls = new ArrayList<String>();
+            List<String> hashvalues = new ArrayList<String>();
             for (RegData regDatum : hashes) {
                 if (regDatum.getURLExternalForm().startsWith("file")) {
-                    insertRow(connection, "SE", "(" +
-                            "\'" + fullName + "\'" + ", " +
-                            "\'" + regDatum.getURLExternalForm() + "\'" + ", " +
-                            "\'" + regDatum.getHash() + "\'" +
-                            ")");
+                    urls.add(regDatum.getURLExternalForm());
+                    hashvalues.add(regDatum.getHash());
                 }
             }
-            connection.close();
-        } catch (Exception e) {
-            e.printStackTrace();
+            Document doc = new Document("fullname", fullName)
+                    .append("url", urls)
+                    .append("hashvalue", hashvalues);
+            collection.insertOne(doc);
         }
     }
 
@@ -250,7 +294,7 @@ public abstract class Storer {
     /**
      * Loading actual data from the given stream. Implementation in subclasses
      * should have matching load and save methods.
-     * 
+     *
      * @param fis
      *            Stream that contains regression information.
      * @return Regression data.
@@ -260,7 +304,7 @@ public abstract class Storer {
     /**
      * Saving regression data to the given stream. Implementation in subclasses
      * should have matching load and save methods.
-     * 
+     *
      * @param fos
      *            Stream that stores regression information.
      * @param hashes
@@ -288,7 +332,7 @@ public abstract class Storer {
      * Opens {@link FileInputStream}. This method checks if file name is too
      * long and hashes the file name. If there are some other problems, the
      * method gives up and returns null.
-     * 
+     *
      * @param dirName
      *            Destination directory.
      * @param fullName
@@ -325,7 +369,7 @@ public abstract class Storer {
      * Opens {@link FileOutputStream}. This method checks if file name is too
      * long and hashes the name of the file. If there are other problems, this
      * method gives up and returns null.
-     * 
+     *
      * @param dirName
      *            Destination directory.
      * @param fullName
