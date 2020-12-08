@@ -95,6 +95,7 @@ public final class DependencyAnalyzer {
     public synchronized boolean isAffected(String name) {
         String fullMethodName = name + "." + COV_EXT;
         Set<RegData> regData = mStorer.load(mRootDir, name, COV_EXT);
+//        Set<RegData> regData = mStorer.myload(mRootDir, name, COV_EXT);
         boolean isAffected = isAffected(regData);
         recordTestAffectedOutcome(fullMethodName, isAffected);
         return isAffected;
@@ -148,6 +149,7 @@ public final class DependencyAnalyzer {
         boolean isAffected = true;
         String fullMethodName = className + "." + CLASS_EXT;
         Set<RegData> regData = mStorer.load(mRootDir, className, CLASS_EXT);
+//        Set<RegData> regData = mStorer.myload(mRootDir, className, CLASS_EXT);
         isAffected = isAffected(regData);
         recordTestAffectedOutcome(fullMethodName, isAffected);
         return isAffected;
@@ -202,11 +204,13 @@ public final class DependencyAnalyzer {
         // the coverage (load the old one and new one will be appended).
         if (mFullTestName2Rerun.containsKey(fullMethodName)) {
             Set<RegData> regData = mStorer.load(mRootDir, className, methodName);
+//            Set<RegData> regData = mStorer.myload(mRootDir, className, methodName);
             CoverageMonitor.addURLs(extractExternalForms(regData));
             return mFullTestName2Rerun.get(fullMethodName);
         }
 
         Set<RegData> regData = mStorer.load(mRootDir, className, methodName);
+//        Set<RegData> regData = mStorer.myload(mRootDir, className, methodName);
         boolean isAffected = isAffected(regData);
         if (isRecordAffectedOutcome) {
             recordTestAffectedOutcome(fullMethodName, isAffected);
@@ -274,6 +278,7 @@ public final class DependencyAnalyzer {
             regData.add(new RegData(entry.getKey(), entry.getValue()));
         }
         mStorer.save(mRootDir, className, methodName, regData);
+        mStorer.mysave(mRootDir, className, methodName, regData);
         // Clean monitor after the test finished the execution
         CoverageMonitor.clean();
     }

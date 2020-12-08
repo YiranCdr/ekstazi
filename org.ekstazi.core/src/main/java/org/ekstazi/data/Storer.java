@@ -20,7 +20,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.sql.*;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Properties;
 import java.util.Set;
 
 import org.ekstazi.Config;
@@ -108,6 +111,53 @@ public abstract class Storer {
         return load(openFileRead(dirName, fullName, className, methodName));
     }
 
+
+    private Set<RegData> query(Connection connection, String tableName, String colName, String value) throws SQLException {
+        String selectString = "select * from " + tableName + " where " + colName + " = " + "\'" + value + "\'";
+        Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery(selectString);
+
+        Set<RegData> hashes = new HashSet<RegData>();
+
+        while (resultSet.next()) {
+//            String fullName = resultSet.getString(1);
+            String fileUrl = resultSet.getString(2);
+            String hash = resultSet.getString(3);
+            hashes.add(new RegData(fileUrl, hash));
+        }
+        resultSet.close();
+        statement.close();
+
+        return hashes;
+    }
+
+    public final Set<RegData> myload(String dirName, String fullName) {
+        // my local database
+        String url = "jdbc:postgresql://localhost/postgres";
+        Properties props = new Properties();
+        props.setProperty("user","apple");
+        props.setProperty("password","ranpengFEI123");
+        props.setProperty("reWriteBatchedInserts=true", "true");
+
+        Connection connection = null;
+        Set<RegData> hashes = null;
+        try {
+            connection = DriverManager.getConnection(url, props);
+            hashes = query(connection, "SE", "fullname", fullName);
+            connection.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return hashes;
+    }
+
+    // my load
+    public final Set<RegData> myload(String dirName, String className, String methodName) {
+        String fullName = className + '.' + methodName;
+        return myload(dirName, fullName);
+    }
+
     /**
      * Saves regression data.
      */
@@ -133,6 +183,68 @@ public abstract class Storer {
         new File(dirName).mkdir();
         String fullName = className + '.' + methodName;
         save(openFileWrite(dirName, fullName, className, methodName), regData);
+    }
+
+    public static void insertRow(Connection connection, String tableName, String values) throws SQLException {
+        // use batch insertion without autocommit to insert more rows at a time
+//        System.out.println("inserting row");
+        String insertString =
+                "insert into "+ tableName +
+                        " values " + values;
+        Statement statement = connection.createStatement();
+        statement.executeUpdate(insertString);
+        statement.close();
+    }
+
+    public static void deleteRows(Connection connection, String tableName, String ColName, String value) throws SQLException {
+        String deleteString =
+                "delete from "+ tableName +
+                        " where " + ColName + " = " + "\'" + value + "\'";
+        Statement statement = connection.createStatement();
+        statement.executeUpdate(deleteString);
+        statement.close();
+    }
+
+    /**
+     * my DB storer
+     */
+    public final void mysave(String dirName, String fullName, Set<RegData> hashes) {
+        // @Research(if statement).
+        if (!Config.X_DEPENDENCIES_SAVE_V) {
+            return;
+        }
+
+        // my local database
+        String url = "jdbc:postgresql://localhost/postgres";
+        Properties props = new Properties();
+        props.setProperty("user","apple");
+        props.setProperty("password","ranpengFEI123");
+        props.setProperty("reWriteBatchedInserts=true", "true");
+
+        Connection connection = null;
+
+        try {
+            connection = DriverManager.getConnection(url, props);
+            deleteRows(connection, "SE", "fullname", fullName);
+            for (RegData regDatum : hashes) {
+                if (regDatum.getURLExternalForm().startsWith("file")) {
+                    insertRow(connection, "SE", "(" +
+                            "\'" + fullName + "\'" + ", " +
+                            "\'" + regDatum.getURLExternalForm() + "\'" + ", " +
+                            "\'" + regDatum.getHash() + "\'" +
+                            ")");
+                }
+            }
+            connection.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public final void mysave(String dirName, String className, String methodName, Set<RegData> regData) {
+        String fullName = className + '.' + methodName;
+        mysave(dirName, fullName, regData);
     }
 
     /**

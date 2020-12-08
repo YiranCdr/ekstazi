@@ -78,6 +78,7 @@ final class MethodCheck extends AbstractCheck {
             String methodName = fileName.substring(index + 1);
             boolean isAffected = isAffected(fileDir, className, methodName);
             mTests.add(new TestAbs(isAffected, mStorer.load(fileDir, className, methodName), fileName, fileDir, className));
+//            mTests.add(new TestAbs(isAffected, mStorer.myload(fileDir, className, methodName), fileName, fileDir, className));
         }
         return className;
     }

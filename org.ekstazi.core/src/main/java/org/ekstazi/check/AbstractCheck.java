@@ -44,6 +44,7 @@ abstract class AbstractCheck {
 
     protected boolean isAffected(String dirName, String className, String methodName) {
         return isAffected(mStorer.load(dirName, className, methodName));
+//        return isAffected(mStorer.myload(dirName, className, methodName));
     }
 
     protected boolean isAffected(Set<RegData> regData) {
