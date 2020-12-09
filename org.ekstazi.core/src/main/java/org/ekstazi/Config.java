@@ -251,7 +251,8 @@ public final class Config {
     // DATABASE
     public static boolean USE_DATABASE = false;
     // if USE_POSTGRESQL = true, use postgresql, else use MongoDB
-    public static boolean USE_POSTGRESQL = false;
+    public static boolean USE_POSTGRESQL = true;
+    public static boolean USE_POSTGRESQL_BULKINSERTS = false;
 
     // INITIALIZE
 

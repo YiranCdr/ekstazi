@@ -228,6 +228,54 @@ public abstract class Storer {
         statement.close();
     }
 
+    public ArrayList<String> getValues(Set<RegData> hashes, String fullName) {
+        ArrayList<String> values = new ArrayList<String>();
+        for (RegData regDatum : hashes) {
+            if (regDatum.getURLExternalForm().startsWith("file")) {
+                StringBuilder sb = new StringBuilder();
+                sb.append('(');
+
+                sb.append('\'');
+                sb.append(fullName);
+                sb.append('\'');
+                sb.append(',');
+
+                sb.append('\'');
+                sb.append(regDatum.getURLExternalForm());
+                sb.append('\'');
+                sb.append(',');
+
+                sb.append('\'');
+                sb.append(regDatum.getHash());
+                sb.append('\'');
+
+                sb.append(')');
+
+                values.add(sb.toString());
+            }
+        }
+        return values;
+    }
+
+    public ArrayList<String> getBulkValues(ArrayList<String> values, int numOfValuesPerBulk) {
+        ArrayList<String> newValues = new ArrayList<String>();
+
+        StringBuilder sb = new StringBuilder();
+        int count = 0;
+        for (String value : values) {
+            ++count;
+            sb.append(value);
+            sb.append(',');
+            if (count == numOfValuesPerBulk || count == values.size()) {
+                sb.setLength(sb.length()-1); // remove the last comma
+                newValues.add(sb.toString());
+                sb = new StringBuilder();
+                count = 0;
+            }
+        }
+
+        return newValues;
+    }
     /**
      * my DB storer
      */
@@ -250,13 +298,21 @@ public abstract class Storer {
             try {
                 connection = DriverManager.getConnection(url, props);
                 deleteRows(connection, "SE", "fullname", fullName);
-                for (RegData regDatum : hashes) {
-                    if (regDatum.getURLExternalForm().startsWith("file")) {
-                        insertRow(connection, "SE", "(" +
-                                "\'" + fullName + "\'" + ", " +
-                                "\'" + regDatum.getURLExternalForm() + "\'" + ", " +
-                                "\'" + regDatum.getHash() + "\'" +
-                                ")");
+
+                ArrayList<String> values = getValues(hashes, fullName);
+                System.out.println("values size: " + values.size());
+                if (!Config.USE_POSTGRESQL_BULKINSERTS) {
+                    for (String value : values) {
+                        insertRow(connection, "SE", value);
+                    }
+                } else {
+                    int numOfValuesPerBulk = 10;
+                    ArrayList<String> bulkValues = getBulkValues(values, numOfValuesPerBulk);
+                    System.out.println("bulkValues size: " + bulkValues.size());
+                    for (String value : bulkValues) {
+                        System.out.println("Before");
+                        insertRow(connection, "SE", value);
+                        System.out.println("End");
                     }
                 }
                 connection.close();
